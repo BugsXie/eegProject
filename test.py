@@ -8,4 +8,5 @@ import matplotlib.pyplot as plt
 import xml.etree.ElementTree
 from xml.etree.ElementTree import parse
 
-raw = mne.read_cov
+for i in range (5):
+    print(i)
