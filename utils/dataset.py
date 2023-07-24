@@ -1,6 +1,7 @@
 import torch
-from preprocessing import merge_csv_files
 from torch.utils.data import Dataset
+
+from utils.preprocessing import merge_csv_files
 
 
 class CostumDataset(Dataset):
@@ -22,7 +23,3 @@ class CostumDataset(Dataset):
             sample = self.transform(sample)
 
         return sample, label
-
-
-dataset = CostumDataset("../data/extract_data/train")
-print(dataset[0])
