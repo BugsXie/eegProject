@@ -24,5 +24,5 @@ class CostumDataset(Dataset):
         return sample, label
 
 
-dataset = CostumDataset("./data/extract_data/train")
+dataset = CostumDataset("../data/extract_data/train")
 print(dataset[0])

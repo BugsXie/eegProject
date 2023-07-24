@@ -31,5 +31,5 @@ def merge_csv_files(input_dir, group_size=10):
     return np.array(data), np.array(label)
 
 
-input_directory = "./data/extract_data/train"
+input_directory = "../data/extract_data/train"
 data_set = merge_csv_files(input_directory)
