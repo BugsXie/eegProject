@@ -3,56 +3,50 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.nn import Linear
+import torch
+from torch_geometric.nn import GATConv, global_mean_pool
+import torch.nn.functional as F
+from torcheeg.models import DGCNN
 
+import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
 
-class CNN(torch.nn.Module):
-    def __init__(self, in_channels=16, num_classes=3):
+class GNN(torch.nn.Module):
+    def __init__(self, in_channels=4, num_layers=3, hid_channels=64, num_classes=3):
         super().__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(in_channels, 64, kernel_size=4, stride=1, padding=2),
-            nn.ReLU()
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(64, 128, kernel_size=4, stride=1, padding=2),
-            nn.ReLU()
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv1d(128, 256, kernel_size=4, stride=1, padding=2),
-            nn.ReLU()
-        )
-        self.conv4 = nn.Sequential(
-            nn.Conv1d(256, 64, kernel_size=4, stride=1, padding=2),
-            nn.ReLU()
-        )
+        self.conv1 = GATConv(in_channels, hid_channels)
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers - 1):
+            self.convs.append(GATConv(hid_channels, hid_channels))
+        self.lin1 = Linear(hid_channels, hid_channels)
+        self.lin2 = Linear(hid_channels, num_classes)
 
-        # Calculate the output size of the convolutional layers
-        self.output_size = self._get_conv_output_size()
+    def reset_parameters(self):
+        self.conv1.reset_parameters()
+        for conv in self.convs:
+            conv.reset_parameters()
+        self.lin1.reset_parameters()
+        self.lin2.reset_parameters()
 
-        self.lin1 = nn.Linear(self.output_size, 1024)
-        self.lin2 = nn.Linear(1024, num_classes)
-
-    def _get_conv_output_size(self):
-        # Dummy input to calculate the output size of the convolutional layers
-        dummy_input = torch.zeros(1, 16, 24000)
-        x = self._forward_conv(dummy_input)
-        return x.view(x.size(0), -1).size(1)
-
-    def _forward_conv(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        return x
-
-    def forward(self, x):
-        x = self._forward_conv(x)
-        x = x.view(x.size(0), -1)
-        x = self.lin1(x)
+    def forward(self, x, edge_index, batch):
+        # x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = F.relu(self.conv1(x, edge_index))
+        for conv in self.convs:
+            x = F.relu(conv(x, edge_index))
+        x = global_mean_pool(x, batch)
+        x = F.relu(self.lin1(x))
+        x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin2(x)
         return x
 
+
 if __name__ == '__main__':
-    model = CNN()
-    input = torch.ones([32, 16, 24000])
+    model = DGCNN(in_channels=40, num_electrodes=16, hid_channels=16, num_layers=2, num_classes=3)
+    input = torch.ones([1, 16, 40])
     output = model(input)
-    print(output.shape)
+    print('model: \n', model)
+    print('output_shape: \n', output.shape)
+    writer = SummaryWriter(r".\DGCNN_16_2")
+    writer.add_graph(model, input)
+    writer.close()
